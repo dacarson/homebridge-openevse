@@ -1,6 +1,6 @@
 {
   "name": "homebridge-openevse",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Homebridge plugin for OpenEVSE EV chargers (local API) — Eve Energy outlet, charge-now override, temperature sensor with fault status, Apple Home Energy via Matter",
   "main": "dist/src/index.js",
   "scripts": {

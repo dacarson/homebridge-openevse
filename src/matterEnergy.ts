@@ -266,8 +266,14 @@ export class MatterEnergyBridge {
    * @param chargerId - used to seed a UUID distinct from the HAP accessory's
    * @param displayName
    * @param readings - initial readings to seed the clusters with
+   * @param info - serial number and model shown for the Matter accessory
    */
-  async register(chargerId: number | string, displayName: string, readings: EnergyReadings): Promise<boolean> {
+  async register(
+    chargerId: number | string,
+    displayName: string,
+    readings: EnergyReadings,
+    info: { serialNumber?: string; model?: string } = {},
+  ): Promise<boolean> {
     if (!this.isSupported()) return false;
     const matter = this.api.matter!;
     this.uuid = matter.uuid.generate(`${PLUGIN_NAME}:matter:${chargerId}`);
@@ -276,9 +282,10 @@ export class MatterEnergyBridge {
       UUID: this.uuid,
       displayName,
       deviceType: matter.deviceTypes.ElectricalSensor,
-      serialNumber: String(chargerId),
+      // Matter's BasicInformation.SerialNumber is limited to 32 characters.
+      serialNumber: String(info.serialNumber ?? chargerId).slice(0, 32),
       manufacturer: 'OpenEVSE',
-      model: 'Home Flex',
+      model: String(info.model ?? 'OpenEVSE WiFi').slice(0, 32),
       clusters: this.buildClusters(readings),
     };
 

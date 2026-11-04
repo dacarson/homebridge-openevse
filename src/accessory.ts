@@ -58,6 +58,7 @@ export class OpenEvseAccessory {
   // MATTER_MIN_INTERVAL_MS (plus immediately when charging starts/stops), matching the
   // cadence matterEnergy.ts was designed for.
   private lastMatterMs = 0;
+  private matterRegisterStarted = false;
   private lastMatterCharging = false;
   private static readonly MATTER_MIN_INTERVAL_MS = 15_000;
 
@@ -121,7 +122,7 @@ export class OpenEvseAccessory {
       const bridge = new MatterEnergyBridge(api, log);
       if (bridge.isSupported()) {
         this.matter = bridge;
-        bridge.register(this.id, ctx.displayName, this.readings(null)).catch(() => {});
+        // Registered from setInfo(), once the charger's serial and model are known.
       } else {
         log.info('[matter] "matter" is enabled, but the Matter API is unavailable. It needs Homebridge 2.3.0 or later with Matter enabled on this plugin\'s child bridge. Continuing with HomeKit/Eve only.');
       }
@@ -137,6 +138,12 @@ export class OpenEvseAccessory {
     const { Service: S, Characteristic: C } = this.api.hap;
     const info = this.accessory.getService(S.AccessoryInformation)!;
     const d = deviceInfo(config, status, this.id);
+    if (this.matter && !this.matterRegisterStarted) {
+      this.matterRegisterStarted = true;
+      const ctx = this.accessory.context as AccessoryContext;
+      this.matter.register(this.id, ctx.displayName, this.readings(this.view),
+        { serialNumber: d.serialNumber, model: d.model }).catch(() => {});
+    }
     info.setCharacteristic(C.Manufacturer, 'OpenEVSE');
     info.setCharacteristic(C.Model, d.model);
     info.setCharacteristic(C.SerialNumber, d.serialNumber);

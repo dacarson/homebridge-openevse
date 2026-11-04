@@ -1,8 +1,13 @@
 # Changelog
 
-## 1.0.0
+## 1.0.1
 
 - First public release on npm.
+- Matter accessory now reports the charger's real serial number and model, instead of the fixed "Home Flex" model. Registration waits until the charger's details are known.
+- Limit the Matter serial number and model to 32 characters.
+
+## 1.0.0
+
 - Pin the `hap-nodejs` dev dependency to match Homebridge's so a clean install builds.
 
 ## 0.1.0
