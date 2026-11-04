@@ -25,19 +25,19 @@ export interface AccessoryContext {
 export interface AccessoryOptions {
   matter: boolean;
   temperatureSensor: boolean;
-  faultSensor: boolean;
   chargeNowCurrent?: number;
   eveSettings: EveUpdateSettings;
 }
 
 const TEMP_SUBTYPE = 'evse-temperature';
-const FAULT_SUBTYPE = 'evse-fault';
+// Earlier builds added a ContactSensor with this subtype for faults; it's removed from
+// cached accessories on startup. Faults are reported via StatusFault on the temperature sensor.
+const LEGACY_FAULT_SUBTYPE = 'evse-fault';
 
 export class OpenEvseAccessory {
   readonly id: string;
   private readonly outlet: Service;
   private readonly tempService?: Service;
-  private readonly faultService?: Service;
 
   private readonly charOn: Characteristic;
   private readonly charOutletInUse: Characteristic;
@@ -107,13 +107,8 @@ export class OpenEvseAccessory {
     } else if (existingTemp) {
       accessory.removeService(existingTemp);
     }
-    const existingFault = accessory.getServiceById(S.ContactSensor, FAULT_SUBTYPE);
-    if (opts.faultSensor) {
-      this.faultService = existingFault ??
-        accessory.addService(S.ContactSensor, `${ctx.displayName} Fault`, FAULT_SUBTYPE);
-    } else if (existingFault) {
-      accessory.removeService(existingFault);
-    }
+    const legacyFault = accessory.getServiceById(S.ContactSensor, LEGACY_FAULT_SUBTYPE);
+    if (legacyFault) accessory.removeService(legacyFault);
 
     const FakeGatoHistoryService = fakegato(api);
     this.history = new FakeGatoHistoryService('energy', accessory, {
@@ -184,13 +179,12 @@ export class OpenEvseAccessory {
     this.eveElectricCurrent.update(view.currentA);
     this.eveUpdates.logStatsIfDue();
 
-    if (this.tempService && view.temperatureC !== null) {
-      this.tempService.updateCharacteristic(C.CurrentTemperature, view.temperatureC);
+    if (this.tempService) {
+      if (view.temperatureC !== null) {
+        this.tempService.updateCharacteristic(C.CurrentTemperature, view.temperatureC);
+      }
+      // EVSE errors (GFCI, no ground, stuck relay, over-temperature, ...) -> Status Fault
       this.tempService.updateCharacteristic(C.StatusFault, view.fault ? 1 : 0);
-    }
-    if (this.faultService) {
-      this.faultService.updateCharacteristic(C.ContactSensorState, view.fault ? 1 : 0);
-      this.faultService.updateCharacteristic(C.StatusFault, view.fault ? 1 : 0);
     }
     if (view.faultName !== this.lastFaultName) {
       if (view.faultName) this.log.warn(`[${this.id}] EVSE fault: ${view.faultName}`);

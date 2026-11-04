@@ -17,7 +17,6 @@ interface OpenEvsePlatformConfig extends PlatformConfig {
   websocket?: boolean;
   chargeNowCurrent?: number;
   temperatureSensor?: boolean;
-  faultSensor?: boolean;
   matter?: boolean;
   evePowerUpdates?: EvePowerUpdates;
   minChangeWatts?: number;
@@ -113,7 +112,6 @@ export class OpenEvsePlatform implements DynamicPlatformPlugin {
     this.accessory = new OpenEvseAccessory(this.api, this.log, platformAccessory, this.client, {
       matter: this.config.matter ?? false,
       temperatureSensor: this.config.temperatureSensor ?? true,
-      faultSensor: this.config.faultSensor ?? true,
       chargeNowCurrent: this.config.chargeNowCurrent,
       eveSettings: resolveEveUpdateSettings(this.config, this.log),
     }, () => this.refreshSoon());

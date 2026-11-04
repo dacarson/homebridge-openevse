@@ -11,8 +11,7 @@ It's the successor to [homebridge-chargepoint](https://github.com/dacarson/homeb
 - **Eve Energy outlet**: live watts, amps and volts, plus lifetime kWh from the charger's own energy meter. Eve history graphs work.
 - **Charge now**: turn the outlet **On** to start charging immediately at full current, even when solar divert (Eco mode) would hold off.
 - **Plug detection** through `Outlet In Use`.
-- **EVSE temperature sensor** (optional).
-- **Fault sensor** (optional): a contact sensor that opens on a GFCI fault, no ground, a stuck relay, over-temperature, over-current or another EVSE error, so you can get HomeKit notifications.
+- **EVSE temperature sensor** (optional). Its **Status Fault** is set while the EVSE reports an error: GFCI fault, no ground, stuck relay, over-temperature, over-current and so on. Errors are also logged.
 - **Live updates** pushed over the charger's `/ws` WebSocket, with polling as a fallback.
 - **Apple Home Energy view** through Matter (optional, Homebridge 2.3+).
 - "No Response" in HomeKit when the charger is unreachable.
@@ -46,8 +45,8 @@ The charger only tells the car how much current it may draw. If the car's own sc
 | | Total Consumption (kWh, Eve) | `total_energy`, the charger's lifetime meter |
 | | Voltage (V, Eve) | `voltage` |
 | | Electric Current (A, Eve) | `amp` ÷ 1000 while charging |
-| Temperature Sensor | Current Temperature, Status Fault | `temp` ÷ 10 |
-| Contact Sensor ("Fault") | Contact Sensor State (open = fault), Status Fault | `state` 4–11 |
+| Temperature Sensor | Current Temperature | `temp` ÷ 10 |
+| | Status Fault | `state` 4–11 (EVSE error states) |
 | Accessory Information | Serial Number | EVSE controller serial (`/config` `evse_serial`) if it reports one, otherwise the WiFi module's MAC address (`/status` `macaddress`) |
 | | Firmware Revision | WiFi firmware release (`/config` `version`, e.g. `v5.1.5` → `5.1.5`); left unset for non-release dev builds |
 | | Model | `/config` `buildenv` (e.g. `openevse_wifi_v1`) |
@@ -86,7 +85,6 @@ From a local checkout instead: `npm install` (which also builds), then `npm link
 | `username` / `password` | – | Only if web UI authentication is enabled |
 | `chargeNowCurrent` | charger max | Amps to use when turned On |
 | `temperatureSensor` | `true` | Show the EVSE temperature sensor |
-| `faultSensor` | `true` | Show the fault contact sensor |
 | `websocket` | `true` | Live updates over `/ws`; polling continues as a fallback |
 | `pollingIntervalSeconds` | `30` | Status poll interval (minimum 10). It drops to 15 s while charging if the WebSocket is down. |
 | `matter` | `false` | Also publish over Matter for the Apple Home Energy view |
@@ -122,7 +120,7 @@ npm test      # node:test unit tests, including a mock charger HTTP server
 src/
   index.ts               registers the platform
   platform.ts            discovery, polling, WebSocket, reconnects
-  accessory.ts           Outlet (Eve Energy), temperature + fault sensors, history, Matter
+  accessory.ts           Outlet (Eve Energy), temperature sensor (+ Status Fault), history, Matter
   openevse/client.ts     local HTTP API client (fetch)
   openevse/state.ts      /status -> HomeKit view, On/Off -> override action
   openevse/types.ts      API types and EVSE state codes

@@ -4,7 +4,9 @@
   "singular": true,
   "schema": {
     "type": "object",
-    "required": ["host"],
+    "required": [
+      "host"
+    ],
     "properties": {
       "name": {
         "title": "Accessory Name",
@@ -36,13 +38,8 @@
       "temperatureSensor": {
         "title": "Show EVSE temperature sensor",
         "type": "boolean",
-        "default": true
-      },
-      "faultSensor": {
-        "title": "Show fault sensor",
-        "type": "boolean",
         "default": true,
-        "description": "A contact sensor that opens on GFCI, no-ground, stuck-relay, over-temperature and other EVSE errors — useful for notifications."
+        "description": "EVSE temperature. Its Status Fault is set while the EVSE reports an error (GFCI, no ground, stuck relay, over-temperature, over-current)."
       },
       "websocket": {
         "title": "Live updates over WebSocket",
@@ -67,9 +64,24 @@
         "type": "string",
         "default": "throttled",
         "oneOf": [
-          { "title": "Throttled — push significant changes, plus every 5 minutes (recommended)", "enum": ["throttled"] },
-          { "title": "Poll only — never push; lowest traffic, breaks automations triggered by these values", "enum": ["pollOnly"] },
-          { "title": "Live — push every change", "enum": ["live"] }
+          {
+            "title": "Throttled — push significant changes, plus every 5 minutes (recommended)",
+            "enum": [
+              "throttled"
+            ]
+          },
+          {
+            "title": "Poll only — never push; lowest traffic, breaks automations triggered by these values",
+            "enum": [
+              "pollOnly"
+            ]
+          },
+          {
+            "title": "Live — push every change",
+            "enum": [
+              "live"
+            ]
+          }
         ]
       },
       "minChangeWatts": {
@@ -77,21 +89,27 @@
         "type": "number",
         "default": 25,
         "minimum": 0,
-        "condition": { "functionBody": "return !model.evePowerUpdates || model.evePowerUpdates === 'throttled';" }
+        "condition": {
+          "functionBody": "return !model.evePowerUpdates || model.evePowerUpdates === 'throttled';"
+        }
       },
       "minChangePercent": {
         "title": "Throttled: minimum power change (%)",
         "type": "number",
         "default": 2,
         "minimum": 0,
-        "condition": { "functionBody": "return !model.evePowerUpdates || model.evePowerUpdates === 'throttled';" }
+        "condition": {
+          "functionBody": "return !model.evePowerUpdates || model.evePowerUpdates === 'throttled';"
+        }
       },
       "minChangeKwh": {
         "title": "Throttled: minimum energy change (kWh)",
         "type": "number",
         "default": 0.1,
         "minimum": 0,
-        "condition": { "functionBody": "return !model.evePowerUpdates || model.evePowerUpdates === 'throttled';" }
+        "condition": {
+          "functionBody": "return !model.evePowerUpdates || model.evePowerUpdates === 'throttled';"
+        }
       }
     }
   }
