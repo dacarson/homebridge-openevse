@@ -6,6 +6,7 @@
   "scripts": {
     "build": "rm -rf dist && tsc",
     "watch": "tsc --watch",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build",
     "test": "rm -rf build-test && tsc -p tsconfig.test.json && node --test build-test/test/*.test.js"
   },
