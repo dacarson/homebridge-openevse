@@ -1,0 +1,98 @@
+{
+  "pluginAlias": "OpenEVSE",
+  "pluginType": "platform",
+  "singular": true,
+  "schema": {
+    "type": "object",
+    "required": ["host"],
+    "properties": {
+      "name": {
+        "title": "Accessory Name",
+        "type": "string",
+        "default": "OpenEVSE"
+      },
+      "host": {
+        "title": "Charger host or IP",
+        "type": "string",
+        "placeholder": "openevse.local",
+        "description": "Hostname or IP address of the OpenEVSE WiFi module (local API, no cloud account)."
+      },
+      "username": {
+        "title": "Web UI username",
+        "type": "string",
+        "description": "Only if you enabled authentication in the charger's web UI."
+      },
+      "password": {
+        "title": "Web UI password",
+        "type": "string"
+      },
+      "chargeNowCurrent": {
+        "title": "Charge-now current (A)",
+        "type": "integer",
+        "minimum": 6,
+        "maximum": 80,
+        "description": "Current used when you turn the outlet On. Leave blank to use the charger's configured maximum."
+      },
+      "temperatureSensor": {
+        "title": "Show EVSE temperature sensor",
+        "type": "boolean",
+        "default": true
+      },
+      "faultSensor": {
+        "title": "Show fault sensor",
+        "type": "boolean",
+        "default": true,
+        "description": "A contact sensor that opens on GFCI, no-ground, stuck-relay, over-temperature and other EVSE errors — useful for notifications."
+      },
+      "websocket": {
+        "title": "Live updates over WebSocket",
+        "type": "boolean",
+        "default": true,
+        "description": "Use the charger's /ws push stream for near-instant updates; polling continues as a fallback."
+      },
+      "pollingIntervalSeconds": {
+        "title": "Status poll interval (seconds)",
+        "type": "integer",
+        "default": 30,
+        "minimum": 10
+      },
+      "matter": {
+        "title": "Show in the Apple Home Energy view (via Matter)",
+        "type": "boolean",
+        "default": false,
+        "description": "Also publish the charger over Matter as a standalone electrical sensor. Requires Homebridge 2.3.0+ with Matter enabled on this plugin's child bridge; skipped safely otherwise."
+      },
+      "evePowerUpdates": {
+        "title": "Eve power/energy updates",
+        "type": "string",
+        "default": "throttled",
+        "oneOf": [
+          { "title": "Throttled — push significant changes, plus every 5 minutes (recommended)", "enum": ["throttled"] },
+          { "title": "Poll only — never push; lowest traffic, breaks automations triggered by these values", "enum": ["pollOnly"] },
+          { "title": "Live — push every change", "enum": ["live"] }
+        ]
+      },
+      "minChangeWatts": {
+        "title": "Throttled: minimum power change (W)",
+        "type": "number",
+        "default": 25,
+        "minimum": 0,
+        "condition": { "functionBody": "return !model.evePowerUpdates || model.evePowerUpdates === 'throttled';" }
+      },
+      "minChangePercent": {
+        "title": "Throttled: minimum power change (%)",
+        "type": "number",
+        "default": 2,
+        "minimum": 0,
+        "condition": { "functionBody": "return !model.evePowerUpdates || model.evePowerUpdates === 'throttled';" }
+      },
+      "minChangeKwh": {
+        "title": "Throttled: minimum energy change (kWh)",
+        "type": "number",
+        "default": 0.1,
+        "minimum": 0,
+        "condition": { "functionBody": "return !model.evePowerUpdates || model.evePowerUpdates === 'throttled';" }
+      }
+    }
+  }
+}

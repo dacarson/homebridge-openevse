@@ -1,0 +1,53 @@
+{
+  "name": "homebridge-openevse",
+  "version": "0.1.0",
+  "description": "Homebridge plugin for OpenEVSE EV chargers (local API) — Eve Energy outlet, charge-now override, temperature and fault sensors, Apple Home Energy via Matter",
+  "main": "dist/src/index.js",
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "watch": "tsc --watch",
+    "prepublishOnly": "npm run build",
+    "test": "rm -rf build-test && tsc -p tsconfig.test.json && node --test build-test/test/*.test.js"
+  },
+  "keywords": [
+    "homebridge-plugin",
+    "openevse",
+    "ev",
+    "charging",
+    "solar",
+    "homekit",
+    "supports-hap",
+    "supports-matter"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dacarson/homebridge-openevse.git"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "config.schema.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.4.0",
+    "homebridge": ">=2.1.0"
+  },
+  "peerDependencies": {
+    "homebridge": ">=2.1.0",
+    "hap-nodejs": ">=0.12.0"
+  },
+  "dependencies": {
+    "fakegato-history": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "~5.9.0",
+    "homebridge": "^1.8.0",
+    "hap-nodejs": ">=0.12.0"
+  },
+  "displayName": "OpenEVSE",
+  "pluginAlias": "OpenEVSE",
+  "pluginType": "platform"
+}
