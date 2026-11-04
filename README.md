@@ -1,4 +1,7 @@
 [![License: MIT](https://img.shields.io/github/license/dacarson/homebridge-openevse)](LICENSE)
+[![Version](https://img.shields.io/github/v/release/dacarson/homebridge-openevse)](https://github.com/dacarson/homebridge-openevse/releases)
+[![npm downloads](https://img.shields.io/npm/dt/homebridge-openevse)](https://www.npmjs.com/package/homebridge-openevse)
+
 
 # homebridge-openevse
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0
+
+- First public release on npm.
+- Pin the `hap-nodejs` dev dependency to match Homebridge's so a clean install builds.
+
 ## 0.1.0
 
 - Initial release: successor to homebridge-chargepoint for OpenEVSE chargers.
