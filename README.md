@@ -60,16 +60,20 @@ The voltage is whatever the charger reports. Unless you feed it a measured volta
 
 ## Installation
 
-The plugin isn't on npm yet. Install it straight from GitHub on the Homebridge host. npm builds `dist/` automatically on install, through the `prepare` script.
+In the Homebridge UI, open the **Plugins** tab, search for `homebridge-openevse` and install it.
+
+Or install it from [npm](https://www.npmjs.com/package/homebridge-openevse) on the Homebridge host:
 
 ```bash
 # hb-service installs keep plugins under /var/lib/homebridge
-cd /var/lib/homebridge && sudo -u homebridge npm install github:dacarson/homebridge-openevse
+cd /var/lib/homebridge && sudo -u homebridge npm install homebridge-openevse
 ```
 
-To update later, run the same command again and restart Homebridge.
+To update later, use the Homebridge UI or run the same command again, then restart Homebridge.
 
-From a local checkout instead: `npm install` (which also builds), then `npm link`.
+To run the latest unreleased code, install from GitHub instead: `npm install github:dacarson/homebridge-openevse`. npm builds `dist/` automatically through the `prepare` script.
+
+From a local checkout: `npm install` (which also builds), then `npm link`.
 
 ## Configuration
 
