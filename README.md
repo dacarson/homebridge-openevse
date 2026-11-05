@@ -102,18 +102,9 @@ From a local checkout: `npm install` (which also builds), then `npm link`.
 
 These work the same way as in homebridge-chargepoint. `throttled` pushes a power change only when it's at least `minChangeWatts` or `minChangePercent`% (whichever is larger), an energy change of at least `minChangeKwh`, or any change once 5 minutes have passed. `pollOnly` never pushes. `live` pushes every change. On, Outlet In Use and the sensors always update immediately.
 
-With the WebSocket enabled, the charger pushes a status update every few seconds while charging, so throttling matters more here than it did with ChargePoint polling.
-
 ### Apple Home Energy (Matter)
 
 With `"matter": true`, the charger is also published as a Matter **ElectricalSensor**, which reports voltage, current, power, cumulative energy and 15-minute periodic energy. That feeds the Apple Home Energy view without adding a second controllable tile. You need Homebridge 2.3.0+ with Matter enabled on this plugin's child bridge. Otherwise the plugin logs one line and carries on with HomeKit/Eve only.
-
-## Solar divert, MQTT and OCPP
-
-This plugin doesn't need MQTT or OCPP:
-
-- **Solar divert** is driven by feeding the charger grid import/export readings. Firmware 5.1.5 accepts these over HTTP (`POST /status {"grid_ie": W}`), so no broker is required. See [openevse-sunpower-chargemanager](https://github.com/dacarson/openevse-sunpower-chargemanager), which feeds it from a SunPower PVS6 and adds TOU rules.
-- **OCPP** isn't recommended alongside this plugin. OCPP claims (1050) outrank the manual override, and it turns Homebridge into the charger's backend.
 
 ## Development
 
