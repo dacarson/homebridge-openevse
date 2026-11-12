@@ -36,17 +36,15 @@
     "homebridge": ">=2.1.0"
   },
   "peerDependencies": {
-    "homebridge": ">=2.1.0",
-    "hap-nodejs": ">=0.12.0"
+    "homebridge": ">=2.1.0"
   },
   "dependencies": {
     "fakegato-history": "^0.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "~5.9.0",
-    "homebridge": "^1.8.0",
-    "hap-nodejs": "~0.14.0"
+    "homebridge": "^2.1.0",
+    "typescript": "~5.9.0"
   },
   "displayName": "OpenEVSE",
   "pluginAlias": "OpenEVSE",

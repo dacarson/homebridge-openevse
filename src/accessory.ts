@@ -1,5 +1,5 @@
 import type { API, Logger, PlatformAccessory, Service } from 'homebridge';
-import type { Characteristic } from 'hap-nodejs';
+import type { Characteristic } from 'homebridge';
 import type { OpenEvseClient } from './openevse/client';
 import type { EvseProperties, OpenEvseConfig, OpenEvseStatus } from './openevse/types';
 import { ChargerView, actionForOn, deviceInfo, viewFromStatus } from './openevse/state';

@@ -26,8 +26,8 @@
  */
 
 import type { Logger } from 'homebridge';
-import { Perms } from 'hap-nodejs';
-import type { Characteristic } from 'hap-nodejs';
+import { Perms } from 'homebridge';
+import type { Characteristic } from 'homebridge';
 
 export type EvePowerUpdates = 'throttled' | 'pollOnly' | 'live';
 const EVE_POWER_UPDATE_MODES: readonly EvePowerUpdates[] = ['throttled', 'pollOnly', 'live'];

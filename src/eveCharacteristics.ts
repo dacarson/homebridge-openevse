@@ -1,5 +1,5 @@
 import type { HAP } from 'homebridge';
-import { Formats, Perms } from 'hap-nodejs';
+import { Formats, Perms } from 'homebridge';
 
 export interface EveCharacteristicFactories {
   CurrentConsumption: () => InstanceType<HAP['Characteristic']>;

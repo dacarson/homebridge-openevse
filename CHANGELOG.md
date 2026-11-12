@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Build against Homebridge 2.x (`devDependencies.homebridge` is now `^2.1.0`, matching the `>=2.1.0` requirement Matter support needs).
+- Drop the separate `hap-nodejs` peer and dev dependency. `Perms`/`Formats` and the `Characteristic` type now come from `homebridge`, so users no longer install a second copy of HAP-NodeJS alongside Homebridge's own.
+
 ## 1.0.1
 
 - First public release on npm.

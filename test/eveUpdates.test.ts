@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Logger } from 'homebridge';
-import { Characteristic, Formats, Perms } from 'hap-nodejs';
+import { Characteristic, Formats, Perms } from '@homebridge/hap-nodejs';
 import {
   DEFAULT_EVE_UPDATE_SETTINGS,
   EVE_MAX_PUSH_INTERVAL_MS,
