@@ -11,7 +11,7 @@ It's the successor to [homebridge-chargepoint](https://github.com/dacarson/homeb
 
 ## Features
 
-- **Eve Energy outlet**: live watts, amps and volts, plus lifetime kWh from the charger's own energy meter. Eve history graphs work.
+- **Eve Energy outlet**: live watts, amps and volts, plus lifetime kWh from the charger's own energy meter. Eve history graphs for power and temperature work, but [history power is capped at 6,553.5 W](#eve-history).
 - **Charge now**: turn the outlet **On** to start charging immediately at full current, even when solar divert (Eco mode) would hold off.
 - **Plug detection** through `Outlet In Use`.
 - **EVSE temperature sensor** (optional). Its **Status Fault** is set while the EVSE reports an error: GFCI fault, no ground, stuck relay, over-temperature, over-current and so on. Errors are also logged.
@@ -102,6 +102,32 @@ From a local checkout: `npm install` (which also builds), then `npm link`.
 
 These work the same way as in homebridge-chargepoint. `throttled` pushes a power change only when it's at least `minChangeWatts` or `minChangePercent`% (whichever is larger), an energy change of at least `minChangeKwh`, or any change once 5 minutes have passed. `pollOnly` never pushes. `live` pushes every change. On, Outlet In Use and the sensors always update immediately.
 
+### Eve history
+
+The plugin records Eve history (fakegato) every 10 minutes: the average charging power over those 10 minutes, plus the EVSE temperature when the temperature sensor is on. The Eve app draws its power and temperature graphs from these entries and adds up its history energy totals from them.
+
+**History power is capped at 6,553.5 W.** The Eve history format stores power in a 16-bit field (watts × 10), so it can't hold anything higher. While the car charges faster than that, each entry is recorded as 6,553.5 W, and Eve's history graph and its history kWh read low. The faster the charging, the bigger the shortfall:
+
+| Charging at | Eve history shows | Shortfall |
+|---|---|---|
+| 6.5 kW or less | the real value | none |
+| 7.7 kW (32 A × 240 V) | 6.55 kW | about 15% |
+| 9.6 kW (40 A × 240 V) | 6.55 kW | about 32% |
+| 11.5 kW (48 A × 240 V) | 6.55 kW | about 43% |
+| 19.2 kW (80 A × 240 V) | 6.55 kW | about 66% |
+
+The first time a 10-minute window goes over the cap, the plugin logs a line saying so.
+
+The cap only affects Eve's history. These always show the full value:
+
+- live **Current Consumption** (W)
+- **Total Consumption** (kWh), which comes straight from the charger's own lifetime meter
+- the **Apple Home Energy** view through Matter
+
+For accurate per-session or daily energy at high charging rates, use Total Consumption, Apple Home Energy or the OpenEVSE web UI rather than Eve's history graph.
+
+**Upgrading from 1.0.1:** earlier versions recorded history wrongly. Power above 6,553.5 W wrapped around to a small number, entries were written on every poll, and the temperature graph sat at 0 °C / 32 °F. To clear those entries, open the history list in the Eve app and use **Edit**. New entries keep arriving as normal.
+
 ### Apple Home Energy (Matter)
 
 With `"matter": true`, the charger is also published as a Matter **ElectricalSensor**, which reports voltage, current, power, cumulative energy and 15-minute periodic energy. That feeds the Apple Home Energy view without adding a second controllable tile. You need Homebridge 2.3.0+ with Matter enabled on this plugin's child bridge. Otherwise the plugin logs one line and carries on with HomeKit/Eve only.
@@ -123,6 +149,7 @@ src/
   openevse/state.ts      /status -> HomeKit view, On/Off -> override action
   openevse/types.ts      API types and EVSE state codes
   eveCharacteristics.ts  Eve custom characteristic UUIDs
+  eveHistory.ts          10-minute Eve history entries, power cap, temperature in history records
   eveUpdates.ts          throttled / pollOnly / live push policy
   matterEnergy.ts        optional Matter ElectricalSensor export
 ```
