@@ -56,6 +56,7 @@ export class OpenEvsePlatform implements DynamicPlatformPlugin {
     });
     api.on('shutdown', () => {
       this.shuttingDown = true;
+      this.accessory?.stop();
       if (this.pollTimer) clearTimeout(this.pollTimer);
       this.closeWs();
     });
@@ -161,7 +162,7 @@ export class OpenEvsePlatform implements DynamicPlatformPlugin {
       const override = needOverride ? await this.client.getOverride() : null;
       this.status = status;
       this.lastOverrideVersion = status.override_version;
-      this.accessory.update(status, override, true);
+      this.accessory.update(status, override);
       if (!this.infoComplete) {
         const config = await this.client.getConfig();
         this.accessory.setInfo(config, status);

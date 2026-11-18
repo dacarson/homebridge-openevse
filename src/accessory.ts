@@ -14,6 +14,7 @@ import {
   kwhThreshold,
   wattsThreshold,
 } from './eveUpdates';
+import { EVE_HISTORY_INTERVAL_MS, EveEnergyHistory, fillEnergyHistoryTemperatures } from './eveHistory';
 import fakegato = require('fakegato-history');
 
 export interface AccessoryContext {
@@ -33,6 +34,16 @@ const TEMP_SUBTYPE = 'evse-temperature';
 // Earlier builds added a ContactSensor with this subtype for faults; it's removed from
 // cached accessories on startup. Faults are reported via StatusFault on the temperature sensor.
 const LEGACY_FAULT_SUBTYPE = 'evse-fault';
+const EVE_HISTORY_SERVICE_UUID = 'E863F007-079E-48FF-8F27-9C2605A29F52';
+const EVE_HISTORY_ENTRIES_UUID = 'E863F117-079E-48FF-8F27-9C2605A29F52'; // S2R2
+
+// fakegato-history internals used to store and read back temperature per entry.
+interface FakeGatoInternals {
+  _addEntry(entry: { time: number; power: number; temp?: number }): void;
+  getCurrentS2R2(callback: (err: unknown, value?: string) => void): void;
+  history: Array<{ temp?: number } | undefined>;
+  memorySize: number;
+}
 
 export class OpenEvseAccessory {
   readonly id: string;
@@ -49,9 +60,9 @@ export class OpenEvseAccessory {
   private readonly eveElectricCurrent: EveCharacteristicUpdater;
 
   private readonly history: InstanceType<ReturnType<typeof fakegato>>;
-  private lastIdleHistoryMs = 0;
-  private lastHistoryPower = 0;
-  private static readonly IDLE_HISTORY_INTERVAL_MS = 10 * 60 * 1000;
+  private readonly energyHistory = new EveEnergyHistory();
+  private historyTimer: NodeJS.Timeout | null = null;
+  private lastTemperatureC: number | null = null;
 
   private matter: MatterEnergyBridge | null = null;
   // WebSocket events can arrive every second or two; Matter gets at most one update per
@@ -117,6 +128,10 @@ export class OpenEvseAccessory {
       storage: 'fs',
       disableTimer: true,
     });
+    if (this.tempService) this.fillHistoryTemperatures();
+    this.energyHistory.sample(0, Date.now());
+    this.historyTimer = setInterval(() => this.recordHistory(), EVE_HISTORY_INTERVAL_MS);
+    this.historyTimer.unref?.();
 
     if (opts.matter) {
       const bridge = new MatterEnergyBridge(api, log);
@@ -169,7 +184,7 @@ export class OpenEvseAccessory {
   }
 
   /** Apply a fresh status (from poll or websocket). `override` undefined = unchanged. */
-  update(status: OpenEvseStatus, override?: EvseProperties | null, recordHistory = false): void {
+  update(status: OpenEvseStatus, override?: EvseProperties | null): void {
     this.status = status;
     if (override !== undefined) this.override = override;
     // The status flag is authoritative for whether an override exists at all.
@@ -189,6 +204,7 @@ export class OpenEvseAccessory {
     if (this.tempService) {
       if (view.temperatureC !== null) {
         this.tempService.updateCharacteristic(C.CurrentTemperature, view.temperatureC);
+        this.lastTemperatureC = view.temperatureC;
       }
       // EVSE errors (GFCI, no ground, stuck relay, over-temperature, ...) -> Status Fault
       this.tempService.updateCharacteristic(C.StatusFault, view.fault ? 1 : 0);
@@ -211,20 +227,67 @@ export class OpenEvseAccessory {
         this.matter.update(this.readings(view)).catch(() => {});
       }
     }
-    if (recordHistory || (this.lastHistoryPower > 0 && view.powerW === 0)) this.recordHistory(view);
+    this.energyHistory.sample(view.powerW, Date.now());
   }
 
-  private recordHistory(view: ChargerView): void {
+  /** Every 10 minutes: add the window's average power (split if > 3276.7 W) to Eve history. */
+  private recordHistory(): void {
     const now = Date.now();
-    const endedCharging = this.lastHistoryPower > 0 && view.powerW === 0;
-    if (view.powerW > 0 || endedCharging || now - this.lastIdleHistoryMs >= OpenEvseAccessory.IDLE_HISTORY_INTERVAL_MS) {
-      this.history.addEntry({ time: Math.round(now / 1000), power: view.powerW });
-      if (view.powerW === 0) this.lastIdleHistoryMs = now;
-      this.lastHistoryPower = view.powerW;
+    const powers = this.energyHistory.flush(now);
+    const temp = this.tempService && this.lastTemperatureC !== null ? this.lastTemperatureC : undefined;
+    const internals = this.history as unknown as FakeGatoInternals;
+    powers.forEach((power, i) => {
+      // Split entries get distinct, increasing timestamps ending at `now`.
+      const time = Math.round(now / 1000) - (powers.length - 1 - i);
+      if (temp !== undefined) {
+        // fakegato's addEntry drops everything but power for 'energy'; _addEntry keeps
+        // temp in the stored (and persisted) entry so it can be sent to Eve.
+        internals._addEntry({ time, power, temp });
+      } else {
+        this.history.addEntry({ time, power });
+      }
+    });
+    if (powers.length > 1) {
+      this.log.debug(`[${this.id}] Eve history: ${powers.length} entries of ${powers[0]} W for one 10-minute window`);
     }
   }
 
+  stop(): void {
+    if (this.historyTimer) clearInterval(this.historyTimer);
+    this.historyTimer = null;
+  }
+
+  /**
+   * fakegato writes 0 for the temperature field of Eve energy history records, so with the
+   * temperature sensor present Eve graphs a flat 0 °C. Wrap the history-read handler and
+   * fill in the temperature stored with each entry (entries recorded before this was
+   * added have none and stay at 0).
+   */
+  private fillHistoryTemperatures(): void {
+    const internals = this.history as unknown as FakeGatoInternals;
+    const char = this.accessory.services
+      .find(s => s.UUID === EVE_HISTORY_SERVICE_UUID)
+      ?.characteristics.find(c => c.UUID === EVE_HISTORY_ENTRIES_UUID);
+    if (!char) {
+      this.log.debug(`[${this.id}] Eve history characteristic not found; history temperatures not filled`);
+      return;
+    }
+    const tempForEntry = (entry: number) => internals.history[entry % internals.memorySize]?.temp;
+    char.removeAllListeners('get');
+    char.on('get', callback => {
+      internals.getCurrentS2R2((err, value) => {
+        if (err || typeof value !== 'string') return callback(err as Error | null, value);
+        try {
+          callback(null, fillEnergyHistoryTemperatures(value, tempForEntry));
+        } catch {
+          callback(null, value);
+        }
+      });
+    });
+  }
+
   markNoResponse(): void {
+    this.energyHistory.sample(0, Date.now());
     this.charOn.updateValue(new Error('No Response') as unknown as boolean);
   }
 
