@@ -22,13 +22,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/dacarson/homebridge-openevse.git"
+    "url": "git+https://github.com/dacarson/homebridge-openevse.git"
   },
   "license": "MIT",
   "files": [
     "dist",
     "config.schema.json",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {
