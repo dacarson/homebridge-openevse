@@ -47,57 +47,54 @@ describe('fillEnergyHistoryTemperatures', () => {
 
 describe('EveEnergyHistory', () => {
   const MIN = 60_000;
-  // Eve shows each entry as power / 6 Wh (a 10-minute sample).
-  const eveWh = (powers: number[]) => powers.reduce((a, p) => a + p / 6, 0);
+  const W = EVE_HISTORY_INTERVAL_MS;
 
   // Samples every 30 s, as the poller/websocket would.
   function run(h: EveEnergyHistory, powerAt: (t: number) => number, from: number, to: number): void {
     for (let t = from; t < to; t += 30_000) h.sample(powerAt(t), t);
   }
 
-  it('emits one time-weighted average entry per window', () => {
+  it('records the time-weighted average power for each window', () => {
     const h = new EveEnergyHistory();
-    run(h, t => (t < 5 * MIN ? 3000 : 0), 0, EVE_HISTORY_INTERVAL_MS);
-    assert.deepEqual(h.flush(EVE_HISTORY_INTERVAL_MS), [1500]);
+    run(h, t => (t < 5 * MIN ? 3000 : 0), 0, W);
+    assert.deepEqual(h.flush(W), { powerW: 1500, averageW: 1500 });
   });
 
-  it('emits 0 for an idle window', () => {
+  it('records 0 for an idle window', () => {
     const h = new EveEnergyHistory();
-    run(h, () => 0, 0, EVE_HISTORY_INTERVAL_MS);
-    assert.deepEqual(h.flush(EVE_HISTORY_INTERVAL_MS), [0]);
+    run(h, () => 0, 0, W);
+    assert.deepEqual(h.flush(W), { powerW: 0, averageW: 0 });
   });
 
-  it('splits windows above 3276.7 W so the Eve energy total is still right', () => {
+  it('caps power above 6553.5 W instead of letting it wrap', () => {
     const h = new EveEnergyHistory();
-    run(h, () => 6685.3, 0, EVE_HISTORY_INTERVAL_MS);
-    const powers = h.flush(EVE_HISTORY_INTERVAL_MS);
-    assert.equal(powers.length, 3);
-    for (const p of powers) assert.ok(p <= EVE_HISTORY_MAX_POWER_W && p * 10 <= 0x7fff);
-    assert.ok(Math.abs(eveWh(powers) - 6685.3 / 6) < 0.1); // 1114.2 Wh for the 10 minutes
+    run(h, () => 9183, 0, W);
+    const { powerW, averageW } = h.flush(W);
+    assert.equal(powerW, EVE_HISTORY_MAX_POWER_W);
+    assert.ok(powerW * 10 <= 0xffff);
+    assert.equal(averageW, 9183);
   });
 
-  it('handles very high power (80 A x 240 V) with more parts', () => {
+  it('averages over the actual window length', () => {
     const h = new EveEnergyHistory();
-    run(h, () => 19200, 0, EVE_HISTORY_INTERVAL_MS);
-    const powers = h.flush(EVE_HISTORY_INTERVAL_MS);
-    assert.equal(powers.length, 6);
-    assert.ok(Math.abs(eveWh(powers) - 3200) < 0.1);
+    run(h, () => 1200, 0, 4 * MIN);
+    assert.equal(h.flush(4 * MIN).powerW, 1200);
   });
 
   it('splits power between windows at the boundary', () => {
     const h = new EveEnergyHistory();
     run(h, () => 0, 0, 5 * MIN);
-    run(h, () => 1200, 5 * MIN, 10 * MIN);
+    run(h, () => 1200, 5 * MIN, W);
     // The 30 s since the last sample is credited to this window at the last power.
-    assert.deepEqual(h.flush(EVE_HISTORY_INTERVAL_MS), [600]);
-    run(h, () => 1200, 10 * MIN, 20 * MIN);
-    assert.deepEqual(h.flush(2 * EVE_HISTORY_INTERVAL_MS), [1200]);
+    assert.equal(h.flush(W).powerW, 600);
+    run(h, () => 1200, W, 2 * W);
+    assert.equal(h.flush(2 * W).powerW, 1200);
   });
 
   it('does not credit power across a long outage', () => {
     const h = new EveEnergyHistory();
     h.sample(6000, 0);
     // Charger unreachable for 10 minutes: only the 2-minute gap allowance counts.
-    assert.deepEqual(h.flush(EVE_HISTORY_INTERVAL_MS), [1200]);
+    assert.equal(h.flush(W).powerW, 1200);
   });
 });

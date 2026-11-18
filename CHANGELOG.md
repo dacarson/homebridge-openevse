@@ -5,7 +5,7 @@
 - Build against Homebridge 2.x (`devDependencies.homebridge` is now `^2.1.0`, matching the `>=2.1.0` requirement Matter support needs).
 - Drop the separate `hap-nodejs` peer and dev dependency. `Perms`/`Formats` and the `Characteristic` type now come from `homebridge`, so users no longer install a second copy of HAP-NodeJS alongside Homebridge's own.
 - Fix the Eve temperature graph sitting flat at 0 °C / 32 °F. History entries now store the charger temperature, and it's sent to Eve. Entries recorded before this fix still show 0.
-- Fix Eve history energy totals. Eve counts every history entry as a 10-minute sample, but entries were written on every poll (about every 30 s), and power above 6,553.5 W wrapped around (6.7 kW was recorded as 132 W). History now gets one entry per 10 minutes with the average power over that window. A window averaging more than 3,276.7 W is split into several entries that together hold the right energy.
+- Fix Eve history energy. Power above 6,553.5 W wrapped around in Eve history (9.2 kW was recorded as about 2.6 kW), because the history format stores watts x 10 in 16 bits. History power is now capped at 6,553.5 W, so Eve's history graph and its kWh totals are capped there too. Live consumption, Total Consumption and Apple Home Energy are unaffected. History now gets one entry per 10 minutes with the average power over that window, instead of one on every poll.
 
 ## 1.0.1
 

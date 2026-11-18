@@ -14,7 +14,12 @@ import {
   kwhThreshold,
   wattsThreshold,
 } from './eveUpdates';
-import { EVE_HISTORY_INTERVAL_MS, EveEnergyHistory, fillEnergyHistoryTemperatures } from './eveHistory';
+import {
+  EVE_HISTORY_INTERVAL_MS,
+  EVE_HISTORY_MAX_POWER_W,
+  EveEnergyHistory,
+  fillEnergyHistoryTemperatures,
+} from './eveHistory';
 import fakegato = require('fakegato-history');
 
 export interface AccessoryContext {
@@ -63,6 +68,7 @@ export class OpenEvseAccessory {
   private readonly energyHistory = new EveEnergyHistory();
   private historyTimer: NodeJS.Timeout | null = null;
   private lastTemperatureC: number | null = null;
+  private loggedHistoryCap = false;
 
   private matter: MatterEnergyBridge | null = null;
   // WebSocket events can arrive every second or two; Matter gets at most one update per
@@ -230,25 +236,23 @@ export class OpenEvseAccessory {
     this.energyHistory.sample(view.powerW, Date.now());
   }
 
-  /** Every 10 minutes: add the window's average power (split if > 3276.7 W) to Eve history. */
+  /** Every 10 minutes: add the window's average power (capped at 6553.5 W) to Eve history. */
   private recordHistory(): void {
     const now = Date.now();
-    const powers = this.energyHistory.flush(now);
-    const temp = this.tempService && this.lastTemperatureC !== null ? this.lastTemperatureC : undefined;
-    const internals = this.history as unknown as FakeGatoInternals;
-    powers.forEach((power, i) => {
-      // Split entries get distinct, increasing timestamps ending at `now`.
-      const time = Math.round(now / 1000) - (powers.length - 1 - i);
-      if (temp !== undefined) {
-        // fakegato's addEntry drops everything but power for 'energy'; _addEntry keeps
-        // temp in the stored (and persisted) entry so it can be sent to Eve.
-        internals._addEntry({ time, power, temp });
-      } else {
-        this.history.addEntry({ time, power });
-      }
-    });
-    if (powers.length > 1) {
-      this.log.debug(`[${this.id}] Eve history: ${powers.length} entries of ${powers[0]} W for one 10-minute window`);
+    const { powerW: power, averageW } = this.energyHistory.flush(now);
+    const time = Math.round(now / 1000);
+    if (this.tempService && this.lastTemperatureC !== null) {
+      // fakegato's addEntry drops everything but power for 'energy'; _addEntry keeps
+      // temp in the stored (and persisted) entry so it can be sent to Eve.
+      (this.history as unknown as FakeGatoInternals)._addEntry({ time, power, temp: this.lastTemperatureC });
+    } else {
+      this.history.addEntry({ time, power });
+    }
+    if (averageW > power && !this.loggedHistoryCap) {
+      this.loggedHistoryCap = true;
+      this.log.info(`[${this.id}] Averaged ${averageW} W over the last 10 minutes; Eve history can only ` +
+        `record up to ${EVE_HISTORY_MAX_POWER_W} W, so Eve's history graph and its kWh totals are capped there. ` +
+        'Live consumption, Total Consumption and Apple Home Energy are unaffected.');
     }
   }
 

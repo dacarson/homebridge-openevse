@@ -11,27 +11,30 @@
  * Other records (e.g. the 0x15 reference-time record) are left untouched.
  */
 /**
- * Eve.app treats every energy history entry as a 10-minute sample: it shows each one as
- * power / 6 Wh and ignores the timestamps. Power is stored as a 16-bit "watts x 10"
- * value, so 6685 W wraps around and reads as 131.7 W.
- *
- * EveEnergyHistory integrates power over each 10-minute window and returns entries for
- * it. If the window's average power is too big for one entry, the window is split into
- * several entries that each fit and together add up to the same energy. Eve sums the
- * entries, so its kWh totals stay right at any charging power. The per-entry limit is
- * 3276.7 W (signed 16-bit), so the result is the same whether Eve reads the field as
- * signed or unsigned.
+ * Eve.app turns each energy history entry into energy as power x (time since the
+ * previous entry), so an entry's power covers the interval that ends at its timestamp.
+ * Power is stored as a 16-bit "watts x 10" value: above 6553.5 W it wraps around
+ * (9.2 kW is recorded as about 2.6 kW). Splitting into several entries can't get around
+ * this, because they share the same time span, so Eve history can't show a sustained
+ * power above the limit. EveEnergyHistory writes one entry per 10 minutes with the
+ * window's time-weighted average power, capped at the limit instead of wrapping.
  */
 export const EVE_HISTORY_INTERVAL_MS = 10 * 60 * 1000;
-export const EVE_HISTORY_MAX_POWER_W = 3276.7;
+export const EVE_HISTORY_MAX_POWER_W = 6553.5;
 // Polls run at least every 30 s; a longer silence means the charger was unreachable,
 // so only this much of a gap is credited at the last known power.
 export const EVE_HISTORY_MAX_GAP_MS = 2 * 60 * 1000;
+
+export interface HistoryWindow {
+  powerW: number;   // value to record, capped at EVE_HISTORY_MAX_POWER_W
+  averageW: number; // actual average power over the window
+}
 
 export class EveEnergyHistory {
   private energyWs = 0;
   private lastPowerW = 0;
   private lastSampleMs: number | null = null;
+  private windowStartMs: number | null = null;
 
   /** Record the charger's power at `nowMs` (it applies until the next sample). */
   sample(powerW: number, nowMs: number): void {
@@ -39,17 +42,19 @@ export class EveEnergyHistory {
     this.lastPowerW = Number.isFinite(powerW) && powerW > 0 ? powerW : 0;
   }
 
-  /** Close the current window; returns the power values (W) of the entries to add. */
-  flush(nowMs: number): number[] {
+  /** Close the current window and return the power to record for it. */
+  flush(nowMs: number): HistoryWindow {
     this.integrateTo(nowMs);
-    const averageW = this.energyWs / (EVE_HISTORY_INTERVAL_MS / 1000);
+    const start = this.windowStartMs ?? nowMs;
+    const seconds = (nowMs - start) / 1000;
+    const averageW = seconds > 0 ? this.energyWs / seconds : 0;
     this.energyWs = 0;
-    if (averageW <= EVE_HISTORY_MAX_POWER_W) return [round1(averageW)];
-    const parts = Math.ceil(averageW / EVE_HISTORY_MAX_POWER_W);
-    return Array.from({ length: parts }, () => round1(averageW / parts));
+    this.windowStartMs = nowMs;
+    return { powerW: Math.min(EVE_HISTORY_MAX_POWER_W, round1(averageW)), averageW: round1(averageW) };
   }
 
   private integrateTo(nowMs: number): void {
+    if (this.windowStartMs === null) this.windowStartMs = nowMs;
     if (this.lastSampleMs !== null && nowMs > this.lastSampleMs) {
       const dtMs = Math.min(nowMs - this.lastSampleMs, EVE_HISTORY_MAX_GAP_MS);
       this.energyWs += this.lastPowerW * dtMs / 1000;
@@ -59,7 +64,7 @@ export class EveEnergyHistory {
 }
 
 function round1(w: number): number {
-  return Math.min(EVE_HISTORY_MAX_POWER_W, Math.round(w * 10) / 10);
+  return Math.round(w * 10) / 10;
 }
 
 const ENERGY_RECORD_LENGTH = 0x14;
